@@ -25,8 +25,9 @@ function getFeedItemSync(feedItemId) {
   feedItem.contents.author =
     readDocument('users', feedItem.contents.author);
   // Resolve comment author.
-  feedItem.comments.forEach((comment) => {
-    comment.author = readDocument('users', comment.author);
+    feedItem.comments.forEach((comment) => {
+      comment.author = readDocument('users', comment.author);
+      comment.likeCounter = comment.likeCounter.map((id) => readDocument('users', id));
   });
   return feedItem;
 }
@@ -104,7 +105,8 @@ export function postComment(feedItemId, author, contents, cb) {
     feedItem.comments.push({
         "author": author,
         "contents": contents,
-        "postDate": new Date().getTime()
+        "postDate": new Date().getTime(),
+        "likeCounter": []
     });
     writeDocument('feedItems', feedItem);
     // Return a resolved version of the feed item so React can
@@ -145,4 +147,21 @@ export function unlikeFeedItem(feedItemId, userId, cb) {
   }
   // Return a resolved version of the likeCounter
   emulateServerReturn(feedItem.likeCounter.map((userId) => readDocument('users', userId)), cb);
+}
+
+export function likeComment(feedItemId, commentIndex, userId, cb) {
+    var feedItem = readDocument('feedItems', feedItemId);
+    feedItem.comments[commentIndex].likeCounter.push(userId);
+    writeDocument('feedItems', feedItem);
+    emulateServerReturn(getFeedItemSync(feedItemId).comments[commentIndex].likeCounter, cb);
+}
+
+export function unlikeComment(feedItemId, commentIndex, userId, cb) {
+  var feedItem = readDocument('feedItems', feedItemId);
+  var commentId = feedItem.comments[commentIndex].likeCounter.indexOf(userId);
+  if(commentId !== -1){
+    feedItem.comments[commentIndex].likeCounter.splice(commentId, 1);
+    writeDocument('feedItems', feedItem);
+  }
+  emulateServerReturn(feedItem.comments[commentIndex].likeCounter.map((userId) => readDocument('users', userId)), cb);
 }
